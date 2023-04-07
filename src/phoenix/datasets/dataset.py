@@ -73,24 +73,14 @@ class Dataset:
         dataframe: DataFrame,
         schema: Union[Schema, SchemaLike],
         name: Optional[str] = None,
+        validate: bool = True,
         persist_to_disc: bool = True,
     ):
         # allow for schema like objects
         if not isinstance(schema, Schema):
             schema = _get_schema_from_unknown_schema_param(schema)
-        errors = validate_dataset_inputs(
-            dataframe=dataframe,
-            schema=schema,
-        )
-        if errors:
-            for e in errors:
-                logger.error(e)
-            raise err.DatasetError(errors)
-        dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
-        dataframe, schema = _normalize_timestamps(
-            dataframe, schema, default_timestamp=Timestamp.utcnow()
-        )
-        dataframe = _sort_dataframe_rows_by_timestamp(dataframe, schema)
+        if validate:
+            dataframe, schema = _validate(dataframe, schema)
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
@@ -243,14 +233,14 @@ class Dataset:
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_name(cls, name: str) -> "Dataset":
+    def from_name(cls, name: str, validate: bool = True) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
         directory = DATASET_DIR / name
         df = read_parquet(directory / cls._data_file_name)
         with open(directory / cls._schema_file_name) as schema_file:
             schema_json = schema_file.read()
         schema = Schema.from_json(schema_json)
-        return cls(df, schema, name, persist_to_disc=False)
+        return cls(df, schema, name, validate=validate, persist_to_disc=False)
 
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
@@ -293,6 +283,26 @@ class Dataset:
             containing the subset of rows specified in the input
         """
         return self.__dataframe.iloc[sorted(set(rows))]
+
+
+def _validate(
+    dataframe: DataFrame,
+    schema: Schema,
+) -> Tuple[DataFrame, Schema]:
+    errors = validate_dataset_inputs(
+        dataframe=dataframe,
+        schema=schema,
+    )
+    if errors:
+        for e in errors:
+            logger.error(e)
+        raise err.DatasetError(errors)
+    dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
+    dataframe, schema = _normalize_timestamps(
+        dataframe, schema, default_timestamp=Timestamp.utcnow()
+    )
+    dataframe = _sort_dataframe_rows_by_timestamp(dataframe, schema)
+    return dataframe, schema
 
 
 def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:

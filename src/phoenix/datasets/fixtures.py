@@ -310,7 +310,7 @@ def _download_and_persist_dataset_if_missing(
     Downloads a dataset from the given URL if it is not found locally.
     """
     try:
-        return Dataset.from_name(dataset_name)
+        return Dataset.from_name(dataset_name, validate=False)
     except FileNotFoundError:
         pass
 
@@ -319,6 +319,7 @@ def _download_and_persist_dataset_if_missing(
         dataframe=read_parquet(dataset_url),
         schema=schema,
         name=dataset_name,
+        validate=False,
         persist_to_disc=True,
     )
     logger.info("Download complete.")
