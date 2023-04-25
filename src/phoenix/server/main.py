@@ -77,6 +77,7 @@ if __name__ == "__main__":
         primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
             fixture_name
         )
+        print(f"⚙️ Initializing via fixture: {fixture_name}")
         primary_dataset, reference_dataset = download_fixture_if_missing(fixture_name)
         if primary_only:
             reference_dataset_name = None

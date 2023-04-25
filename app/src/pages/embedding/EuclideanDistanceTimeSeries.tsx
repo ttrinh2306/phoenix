@@ -5,6 +5,7 @@ import {
   Bar,
   CartesianGrid,
   ComposedChart,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -40,6 +41,7 @@ import {
 
 import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
 
+const EVAL_WINDOW_COLOR = "#ffffff"; // "#FC9C31";
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
@@ -184,6 +186,10 @@ export function EuclideanDistanceTimeSeries({
       timestamp: new Date(d.timestamp).toISOString(),
     };
   });
+  const evaluationWindowStart = selectedTimestamp
+    ? new Date(selectedTimestamp.valueOf() - 72 * 60 * 60 * 1000).toISOString()
+    : undefined;
+  console.log(evaluationWindowStart);
   return (
     <section
       css={css`
@@ -262,6 +268,17 @@ export function EuclideanDistanceTimeSeries({
               strokeOpacity={0.5}
             />
             <Tooltip content={<TooltipContent />} />
+            {selectedTimestamp != null ? (
+              <>
+                <ReferenceArea
+                  x1={evaluationWindowStart}
+                  x2={selectedTimestamp.toISOString()}
+                  fill={EVAL_WINDOW_COLOR}
+                  fillOpacity={0.1}
+                  strokeOpacity={0.3}
+                />
+              </>
+            ) : null}
             <Bar
               yAxisId="right"
               dataKey="traffic"
