@@ -4,6 +4,8 @@ from typing import Optional, Union
 
 import pandas as pd
 from langchain.agents import AgentOutputParser, AgentType, Tool, initialize_agent
+
+# from langchain.agents.conversational_chat.prompt import FORMAT_INSTRUCTIONS
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts.chat import (
@@ -25,7 +27,6 @@ Markdown code snippet formatted in the following schema:
 {{{{
     "action": string, \\ The action to take. Must be one of {tool_names}
     "action_input": "px.Schema(<keyword-arguments>)", \\ The suggested Phoenix schema.
-    "message": ""
 }}}}
 ```
 
@@ -35,12 +36,10 @@ Use this if you want to respond directly to the human. Markdown code snippet for
 ```json
 {{{{
     "action": "Final Answer",
-    "message": string \\ The message to send to the human, which will be displayed in the chat.
+    "action_input": string \\ You should put what you want to return to use here
+    "message": string \\ The message to send to the human (should not contain code)
 }}}}
-```
-
-The response should start with "```json" and end with "```".
-"""
+```"""
 
 
 def get_message() -> str:
@@ -60,7 +59,7 @@ def is_balanced_parentheses(expression: str) -> bool:
 
 
 def parse_phoenix_schema(text: str) -> Optional[str]:
-    pattern = r"px\\.Schema\\((.*?)\\)"
+    pattern = r"px\.Schema\((.*?)\)"
     matches = re.findall(pattern, text, re.DOTALL)
     for match in matches:
         if is_balanced_parentheses(match):
@@ -68,23 +67,49 @@ def parse_phoenix_schema(text: str) -> Optional[str]:
     return None
 
 
+# class PhoenixSchemaOutputParser(BaseOutputParser[Optional[px.datasets.Schema]]):
+#     def parse(self, text: str) -> Optional[px.datasets.Schema]:
+#         phoenix_schema = parse_phoenix_schema(text)
+#         if phoenix_schema is None:
+#             return None
+#         return cast(px.datasets.Schema, eval(phoenix_schema))
+
+#     @classmethod
+#     def get_format_instructions(cls) -> str:
+#         return """The output should be formatted as a valid JSON string of the form:
+
+# {{
+#     "message": <some-string>,
+#     "schema": "px.Schema(<keyword-arguments>)"
+# }}
+# """
+
+
 class PhoenixSchemaAgentOutputParser(AgentOutputParser):
     def get_format_instructions(self) -> str:
         return FORMAT_INSTRUCTIONS
 
+    # def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
+    #     phoenix_schema = parse_phoenix_schema(text)
+    #     if phoenix_schema is None:
+    #         return AgentAction
+    #     phoenix_schema = cast(px.datasets.Schema, eval(phoenix_schema))
+    #     return Agen
+
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
         cleaned_output = text.strip()
-        if cleaned_output.startswith("```json"):
-            cleaned_output = cleaned_output[len("```json") :]
-        if cleaned_output.endswith("```"):
-            cleaned_output = cleaned_output[: -len("```")]
         response = json.loads(cleaned_output)
         action = response["action"]
-        action_input = response.get("action_input")
+        action_input = response["action_input"]
         message = response.get("message")
+        # phoenix_schema = eval(phoenix_schema_expression)
         if action == "Final Answer":
             return AgentFinish(
-                {"output": message},
+                {
+                    "output": json.dumps(
+                        {"phoenix_schema_expression": action_input, "message": message}
+                    ),
+                },
                 text,
             )
         else:
@@ -241,14 +266,10 @@ for column in sampled_dataframe.columns:
 dataframe_column_to_type = "\n".join(
     [f"{column}: {type_string}" for column, type_string in column_to_type.items()]
 )
+# print(dataframe_column_to_type)
 
 
-template = """- You are a helpful chatbot.
-- Your goal is to create a Phoenix schema that describes the user's input dataframe.
-- You should suggest possible schemas, interact with the user, and ask the user to confirm correctness of the schema.
-- You should help the user understand the meaning of each of the fields of phoenix.Schema if they get confused.
-- When the user acknowledges that the schema is correct, you should offer to launch Phoenix on their behalf.
-- If the user asks you to launch Phoenix, you should call the launch-phoenix tool.
+template = """You are a helpful chatbot. Your goal is to create a Phoenix schema that describes the user's input dataframe. Each of your messages should end with the schema itself (syntactic Python code inside of a markdown cell). You should proactively interact with the user to discover the correct schema. You should also help them understand the meaning of each of the fields of phoenix.Schema if they seem confused. When the user explicitly acknowledges that a schema you have suggested correctly describes their dataframe, you should call the launch-phoenix tool.
 
 API reference:
 
@@ -258,6 +279,7 @@ Examples:
 
 {examples}
 """
+# print(template)
 
 
 system_message_prompt_template = SystemMessagePromptTemplate.from_template(template)
@@ -267,25 +289,15 @@ system_message = system_message_prompt_template.format(
 )
 # print(system_message.content)
 
-
-def launch_phoenix(phoenix_schema_expression: str) -> None:
-    print("🚀 Launching Phoenix 🔥🐦")
-    # phoenix_schema = eval(phoenix_schema_expression)
-    # phoenix_dataset = px.Dataset(dataframe, phoenix_schema)
-    # px.launch_app(phoenix_dataset)
-
-
 tools = [
     Tool(
         name="launch-phoenix",
-        func=launch_phoenix,
-        description="This tool launches the Phoenix app. Do not use this tool without explicit permission from the user.",
+        func=lambda x: print(f"🚀 Launching Phoenix {x}"),
+        description=(
+            "This tool launches the Phoenix app. It should only be run"
+            " when the user has acknowledged that the schema for their data is correct."
+        ),
     ),
-    # Tool(
-    #     name="no-op",
-    #     func=lambda x: f"No-op {x}",
-    #     description="This tool does nothing. You should use this tool if the user has not asked to launch Phoenix.",
-    # ),
 ]
 
 
@@ -293,19 +305,17 @@ input_message_prompt_template = """Input Dataframe Columns to Data Type:
 
 {dataframe_column_to_type}
 
-Phoenix Schema:
-"""
+Phoenix Schema:"""
 
 human_message = HumanMessagePromptTemplate.from_template(input_message_prompt_template).format(
     dataframe_column_to_type=dataframe_column_to_type
 )
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 memory.chat_memory.messages.append(system_message)
-memory
 
 
 model_name = "gpt-3.5-turbo"
-llm = ChatOpenAI(model_name=model_name, temperature=0.1)
+llm = ChatOpenAI(model_name=model_name, temperature=0.0)
 output_parser = PhoenixSchemaAgentOutputParser()
 agent_chain = initialize_agent(
     tools=tools,
@@ -319,8 +329,9 @@ message = human_message.content
 while True:
     if message is None:
         message = get_message()
-    message_to_user = agent_chain.run(
-        input=message,
-    )
+    output = agent_chain(message)
+    message_to_user = json.loads(output["output"])["message"]
+    phoenix_schema = json.loads(output["output"])["phoenix_schema_expression"]
     print(message_to_user)
+    print(phoenix_schema)
     message = None
