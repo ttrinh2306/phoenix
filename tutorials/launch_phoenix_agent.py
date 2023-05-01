@@ -3,6 +3,7 @@ import re
 from typing import Optional, Union
 
 import pandas as pd
+import phoenix as px
 from langchain.agents import AgentOutputParser, AgentType, Tool, initialize_agent
 
 # from langchain.agents.conversational_chat.prompt import FORMAT_INSTRUCTIONS
@@ -291,10 +292,18 @@ system_message = system_message_prompt_template.format(
 )
 # print(system_message.content)
 
+
+def launch_phoenix(phoenix_schema_expression: str) -> None:
+    phoenix_schema = eval(phoenix_schema_expression)
+    phoenix_dataset = px.Dataset(dataframe, phoenix_schema)
+    px.launch_app(phoenix_dataset)
+
+
 tools = [
     Tool(
         name="launch-phoenix",
-        func=lambda x: print(f"🚀 Launching Phoenix {x}"),
+        # func=lambda x: print(f"🚀 Launching Phoenix {x}"),
+        func=launch_phoenix,
         description=(
             "This tool launches the Phoenix app. It should only be run"
             " when the user has acknowledged that the schema for their data is correct."
