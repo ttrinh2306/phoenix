@@ -17,29 +17,28 @@ from langchain.schema import AgentAction, AgentFinish
 FORMAT_INSTRUCTIONS = """RESPONSE FORMAT INSTRUCTIONS
 ----------------------------
 
-When responding to me, please output a response in one of two formats:
+When responding to me, you must output a valid JSON string in one of two formats:
 
 **Option 1:**
 Use this if you want the human to use a tool.
-Markdown code snippet formatted in the following schema:
 
-```json
 {{{{
-    "action": string, \\ The action to take. Must be one of {tool_names}
-    "action_input": "px.Schema(<keyword-arguments>)", \\ The suggested Phoenix schema.
+    "action": <string>, \\ The action to take. Must be one of {tool_names}
+    "message": "",
+    "phoenix_schema": "px.Schema(<keyword arguments>)", \\ The suggested Phoenix schema.
 }}}}
-```
 
 **Option #2:**
-Use this if you want to respond directly to the human. Markdown code snippet formatted in the following schema:
+Use this if you want to respond directly to the human.
 
-```json
 {{{{
-    "action": "Final Answer",
-    "action_input": string \\ You should put what you want to return to use here
-    "message": string \\ The message to send to the human (should not contain code)
+    "action": "message-human",
+    "message": <string>, \\ The message to send to the human (should not contain code)
+    "phoenix_schema": <string of the form "px.Schema(<keyword-arguments>)" or null> \\ The Phoenix schema to suggest, or none if you are not making a suggestion.
 }}}}
-```"""
+
+In both cases, the "action", "message", and "phoenix_schema" fields are required.
+"""
 
 
 def get_message() -> str:
@@ -98,22 +97,21 @@ class PhoenixSchemaAgentOutputParser(AgentOutputParser):
 
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
         cleaned_output = text.strip()
+        if cleaned_output.startswith("```json") and cleaned_output.endswith("```"):
+            cleaned_output = cleaned_output[len("```json") : -len("```")]
         response = json.loads(cleaned_output)
         action = response["action"]
-        action_input = response["action_input"]
+        phoenix_schema = response.get("phoenix_schema")
         message = response.get("message")
-        # phoenix_schema = eval(phoenix_schema_expression)
-        if action == "Final Answer":
+        if action == "message-human":
             return AgentFinish(
                 {
-                    "output": json.dumps(
-                        {"phoenix_schema_expression": action_input, "message": message}
-                    ),
+                    "output": json.dumps({"phoenix_schema": phoenix_schema, "message": message}),
                 },
                 text,
             )
         else:
-            return AgentAction(action, action_input, text)
+            return AgentAction(action, phoenix_schema, text)
 
 
 example_data_list = [
@@ -193,46 +191,46 @@ example_data_list = [
     },
 )""",
     },
-    #     {
-    #         "description": "dataframe with actual_label_column_name, (embedding_feature_column_names with vector_column_name and link_to_data_column_name)",
-    #         "dataframe": """pd.DataFrame({
-    #     'defective': ['okay', 'defective', 'okay', 'defective', 'okay'],
-    #     'image': ['https://www.example.com/image0.jpeg', 'https://www.example.com/image1.jpeg', 'https://www.example.com/image2.jpeg', 'https://www.example.com/image3.jpeg', 'https://www.example.com/image4.jpeg'],
-    #     'image_vector': [[1.73, 2.67, 2.91, 1.79, 1.29], [2.18, -0.21, 0.87, 3.84, -0.97], [3.36, -0.62, 2.40, -0.94, 3.69], [2.77, 2.79, 3.36, 0.60, 3.10], [1.79, 2.06, 0.53, 3.58, 0.24]]
-    # })""",
-    #         "schema": """px.Schema(
-    #     actual_label_column_name="defective",
-    #     embedding_feature_column_names={
-    #         "image_embedding": px.EmbeddingColumnNames(
-    #             vector_column_name="image_vector",
-    #             link_to_data_column_name="image",
-    #         ),
-    #     },
-    # )""",
-    #     },
-    #     {
-    #         "description": "dataframe with actual_label_column_name, feature_column_names, tag_column_names, (embedding_feature_column_names with vector_column_name and raw_data_column_name)",
-    #         "dataframe": """pd.DataFrame({
-    #     'defective': ['okay', 'defective', 'okay', 'defective', 'okay'],
-    #     'image': ['https://www.example.com/image0.jpeg', 'https://www.example.com/image1.jpeg', 'https://www.example.com/image2.jpeg', 'https://www.example.com/image3.jpeg', 'https://www.example.com/image4.jpeg'],
-    #     'image_vector': [[1.73, 2.67, 2.91, 1.79, 1.29], [2.18, -0.21, 0.87, 3.84, -0.97], [3.36, -0.62, 2.40, -0.94, 3.69], [2.77, 2.79, 3.36, 0.60, 3.10], [1.79, 2.06, 0.53, 3.58, 0.24]]
-    # })""",
-    #         "schema": """px.Schema(
-    #     actual_label_column_name="sentiment",
-    #     feature_column_names=[
-    #         "category",
-    #     ],
-    #     tag_column_names=[
-    #         "name",
-    #     ],
-    #     embedding_feature_column_names={
-    #         "product_review_embeddings": px.EmbeddingColumnNames(
-    #             vector_column_name="text_vector",
-    #             raw_data_column_name="text",
-    #         ),
-    #     },
-    # )""",
-    #     },
+    {
+        "description": "dataframe with actual_label_column_name, (embedding_feature_column_names with vector_column_name and link_to_data_column_name)",
+        "dataframe": """pd.DataFrame({
+        'defective': ['okay', 'defective', 'okay', 'defective', 'okay'],
+        'image': ['https://www.example.com/image0.jpeg', 'https://www.example.com/image1.jpeg', 'https://www.example.com/image2.jpeg', 'https://www.example.com/image3.jpeg', 'https://www.example.com/image4.jpeg'],
+        'image_vector': [[1.73, 2.67, 2.91, 1.79, 1.29], [2.18, -0.21, 0.87, 3.84, -0.97], [3.36, -0.62, 2.40, -0.94, 3.69], [2.77, 2.79, 3.36, 0.60, 3.10], [1.79, 2.06, 0.53, 3.58, 0.24]]
+    })""",
+        "schema": """px.Schema(
+        actual_label_column_name="defective",
+        embedding_feature_column_names={
+            "image_embedding": px.EmbeddingColumnNames(
+                vector_column_name="image_vector",
+                link_to_data_column_name="image",
+            ),
+        },
+    )""",
+    },
+    {
+        "description": "dataframe with actual_label_column_name, feature_column_names, tag_column_names, (embedding_feature_column_names with vector_column_name and raw_data_column_name)",
+        "dataframe": """pd.DataFrame({
+        'defective': ['okay', 'defective', 'okay', 'defective', 'okay'],
+        'image': ['https://www.example.com/image0.jpeg', 'https://www.example.com/image1.jpeg', 'https://www.example.com/image2.jpeg', 'https://www.example.com/image3.jpeg', 'https://www.example.com/image4.jpeg'],
+        'image_vector': [[1.73, 2.67, 2.91, 1.79, 1.29], [2.18, -0.21, 0.87, 3.84, -0.97], [3.36, -0.62, 2.40, -0.94, 3.69], [2.77, 2.79, 3.36, 0.60, 3.10], [1.79, 2.06, 0.53, 3.58, 0.24]]
+    })""",
+        "schema": """px.Schema(
+        actual_label_column_name="sentiment",
+        feature_column_names=[
+            "category",
+        ],
+        tag_column_names=[
+            "name",
+        ],
+        embedding_feature_column_names={
+            "product_review_embeddings": px.EmbeddingColumnNames(
+                vector_column_name="text_vector",
+                raw_data_column_name="text",
+            ),
+        },
+    )""",
+    },
 ]
 
 examples = ""
@@ -269,7 +267,11 @@ dataframe_column_to_type = "\n".join(
 # print(dataframe_column_to_type)
 
 
-template = """You are a helpful chatbot. Your goal is to create a Phoenix schema that describes the user's input dataframe. Each of your messages should end with the schema itself (syntactic Python code inside of a markdown cell). You should proactively interact with the user to discover the correct schema. You should also help them understand the meaning of each of the fields of phoenix.Schema if they seem confused. When the user explicitly acknowledges that a schema you have suggested correctly describes their dataframe, you should call the launch-phoenix tool.
+template = """- Your goal is to help the user launch the Phoenix app. In order to do that, you must create a Phoenix schema that describes the user's input dataframe.
+- You should proactively suggest schemas to the user until they explicitly acknowledge that a schema you have suggested correctly describes their dataframe.
+- You should also help them understand the meaning of each of the fields of phoenix.Schema if they seem confused.
+- When the user explicitly acknowledges that a schema you have suggested correctly describes their dataframe, you should ask whether they want to launch the Phoenix app.
+- You should stay on topic and not make suggestions not related to the schema or launching Phoenix.
 
 API reference:
 
@@ -314,7 +316,8 @@ memory = ConversationBufferMemory(memory_key="chat_history", return_messages=Tru
 memory.chat_memory.messages.append(system_message)
 
 
-model_name = "gpt-3.5-turbo"
+# model_name = "gpt-3.5-turbo"
+model_name = "gpt-4"
 llm = ChatOpenAI(model_name=model_name, temperature=0.0)
 output_parser = PhoenixSchemaAgentOutputParser()
 agent_chain = initialize_agent(
@@ -331,7 +334,7 @@ while True:
         message = get_message()
     output = agent_chain(message)
     message_to_user = json.loads(output["output"])["message"]
-    phoenix_schema = json.loads(output["output"])["phoenix_schema_expression"]
+    phoenix_schema = json.loads(output["output"])["phoenix_schema"]
     print(message_to_user)
     print(phoenix_schema)
     message = None
