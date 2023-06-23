@@ -23,7 +23,6 @@ from langchain.embeddings.base import Embeddings
 from langchain.embeddings.vertexai import VertexAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Pinecone
-from tiktoken import Encoding
 
 
 def load_gitbook_docs(docs_url: str) -> List[Document]:
@@ -36,15 +35,6 @@ def load_gitbook_docs(docs_url: str) -> List[Document]:
         load_all_paths=True,
     )
     return loader.load()
-
-
-def tiktoken_len(text: str, tokenizer: Encoding) -> int:
-    """
-    Returns the number of tokens in a text.
-    """
-
-    tokens = tokenizer.encode(text, disallowed_special=())
-    return len(tokens)
 
 
 def chunk_docs(documents: List[Document], embedding_model_name: str) -> List[Document]:
