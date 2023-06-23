@@ -40,13 +40,6 @@ def load_gitbook_docs(docs_url: str) -> List[Document]:
 def chunk_docs(documents: List[Document], embedding_model_name: str) -> List[Document]:
     """
     Chunks the documents.
-
-    The chunking strategy used in this function is from the following notebook and accompanying
-    video:
-
-    - https://github.com/pinecone-io/examples/blob/master/generation/langchain/handbook/
-      xx-langchain-chunking.ipynb
-    - https://www.youtube.com/watch?v=eqOfr4AGLk8
     """
 
     text_splitter = RecursiveCharacterTextSplitter(
