@@ -1,9 +1,9 @@
 """
-Builds an index for the Arize documentation using LangChain, Pinecone, and Google's VertexAI API.
+Builds an index for the Arize documentation using LangChain, Pinecone, and Google's Vertex AI API.
 
 To run, you must first create an account with Pinecone and create an index in the UI with the
 appropriate embedding dimension (768 if you are using textembedding-gecko like this script). You
-also need a GCP account with the VertexAI API enabled. This implementation relies on the fact that
+also need a GCP account with the Vertex AI API enabled. This implementation relies on the fact that
 the Arize documentation is written and hosted with Gitbook. If your documentation does not use
 Gitbook, you should use a different document loader.
 """
@@ -59,13 +59,7 @@ def chunk_docs(documents: List[Document], embedding_model_name: str) -> List[Doc
     - https://www.youtube.com/watch?v=eqOfr4AGLk8
     """
 
-    # text_splitter = MarkdownTextSplitter()
     text_splitter = RecursiveCharacterTextSplitter(
-        # chunk_size=400,
-        # chunk_overlap=20,
-        # length_function=partial(
-        #     tiktoken_len, tokenizer=tiktoken.get_encoding("cl100k_base"),
-        # ),
         chunk_size=1000,
         chunk_overlap=50,
         length_function=len,
