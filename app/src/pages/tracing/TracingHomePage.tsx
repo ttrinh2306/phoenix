@@ -1,17 +1,21 @@
 import React, { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery, useSubscription } from "react-relay";
 import { Outlet } from "react-router";
+import { GraphQLSubscriptionConfig } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import { TabPane, Tabs } from "@arizeai/components";
 
 import { TracingHomePageQuery } from "./__generated__/TracingHomePageQuery.graphql";
+import { TracingHomePageSubscription } from "./__generated__/TracingHomePageSubscription.graphql";
 import { SpansTable } from "./SpansTable";
 import { TracesTable } from "./TracesTable";
 import { TracingHomePageHeader } from "./TracingHomePageHeader";
 
 function useTracesSubscription() {
-  const config = useMemo(
+  const config = useMemo<
+    GraphQLSubscriptionConfig<TracingHomePageSubscription>
+  >(
     () => ({
       subscription: graphql`
         subscription TracingHomePageSubscription {
@@ -19,11 +23,14 @@ function useTracesSubscription() {
         }
       `,
       variables: {},
+      onNext: (response) => {
+        console.log(response);
+      },
     }),
     []
   );
 
-  return useSubscription(config);
+  return useSubscription<TracingHomePageSubscription>(config);
 }
 
 export function TracingHomePage() {
@@ -39,7 +46,6 @@ export function TracingHomePage() {
   );
   const subscriptionData = useTracesSubscription();
   console.log(subscriptionData);
-  debugger;
   return (
     <main
       css={css`

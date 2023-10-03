@@ -1,7 +1,6 @@
-import { promises } from "fs";
 import crypto from "crypto";
-import path from "path";
-import { print, parse } from "graphql";
+import { promises } from "fs";
+import { parse, print } from "graphql";
 
 /**
  * A relay plugin for esbuild.
@@ -19,7 +18,9 @@ export const relay = {
           /graphql`([\s\S]*?)`/gm,
           (match, query) => {
             const formatted = print(parse(query));
-            const name = /(fragment|mutation|query) (\w+)/.exec(formatted)[2];
+            const name = /(fragment|mutation|query|subscription) (\w+)/.exec(
+              formatted
+            )[2];
             let id = `graphql__${crypto.randomBytes(10).toString("hex")}`;
             imports.push(
               `import ${id} from "./__generated__/${name}.graphql.ts";`

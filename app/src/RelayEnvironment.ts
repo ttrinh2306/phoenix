@@ -1,10 +1,17 @@
+import { createClient } from "graphql-ws";
 import {
+  CacheConfig,
   Environment,
   FetchFunction,
+  GraphQLResponse,
   Network,
+  Observable,
   RecordSource,
+  RequestParameters,
   Store,
+  Variables,
 } from "relay-runtime";
+import { LegacyObserver } from "relay-runtime/lib/network/RelayNetworkTypes";
 
 /**
  * Relay requires developers to configure a "fetch" function that tells Relay how to load
@@ -43,9 +50,36 @@ const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
   return json;
 };
 
+const subscriptionsClient = createClient({
+  url: "ws://localhost:6060/graphql",
+});
+
+// to understand why we return Observable<any>,
+// please see: https://github.com/enisdenjo/graphql-ws/issues/316#issuecomment-1047605774
+function subscribeRelay(
+  operation: RequestParameters,
+  variables: Variables,
+  _cacheConfig: CacheConfig,
+  _observer?: LegacyObserver<GraphQLResponse>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Observable<any> {
+  return Observable.create((sink) => {
+    if (!operation.text) {
+      return sink.error(new Error("Operation text cannot be empty"));
+    }
+    return subscriptionsClient.subscribe(
+      {
+        operationName: operation.name,
+        query: operation.text,
+        variables,
+      },
+      sink
+    );
+  });
+}
 // Export a singleton instance of Relay Environment configured with our network layer:
 export default new Environment({
-  network: Network.create(fetchRelay),
+  network: Network.create(fetchRelay, subscribeRelay),
   store: new Store(new RecordSource(), {
     // This property tells Relay to not immediately clear its cache when the user
     // navigates around the app. Relay will hold onto the specified number of

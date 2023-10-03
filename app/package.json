@@ -19,6 +19,7 @@
     "d3-scale-chromatic": "^3.0.0",
     "d3-time-format": "^4.1.0",
     "date-fns": "^2.29.3",
+    "graphql-ws": "^5.14.1",
     "lodash": "^4.17.21",
     "normalize.css": "^8.0.1",
     "polished": "^4.2.2",
