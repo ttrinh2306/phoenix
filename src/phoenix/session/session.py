@@ -238,6 +238,8 @@ class ThreadSession(Session):
         )
         # Initialize an app service that keeps the server running
         self.app = create_app(
+            host=self.host,
+            port=self.port,
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,

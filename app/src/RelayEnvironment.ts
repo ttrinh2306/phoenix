@@ -50,9 +50,16 @@ const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
   return json;
 };
 
-const wsUrl = `ws://${window.location.host}/graphql`;
+/**
+ * Construct a WebSocket URL based on the current window URL.
+ */
+function getWebsocketURL() {
+  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${wsProtocol}//${window.location.host}/graphql`;
+}
+
 const subscriptionsClient = createClient({
-  url: wsUrl,
+  url: getWebsocketURL(),
 });
 
 // to understand why we return Observable<any>,
