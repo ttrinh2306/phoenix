@@ -589,6 +589,10 @@ enum SpanStatusCode {
   UNSET
 }
 
+type Subscription {
+  traceCount: Int!
+}
+
 input TimeRange {
   """The start of the time range"""
   start: DateTime!

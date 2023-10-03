@@ -24,6 +24,7 @@ from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from ...trace.filter import SpanFilter
 from .context import Context
 from .input_types.TimeRange import TimeRange
+from .subscription import Subscription
 from .types.DatasetInfo import TraceDatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
@@ -267,4 +268,4 @@ class Mutation(ExportEventsMutation):
     ...
 
 
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+schema = strawberry.Schema(query=Query, mutation=Mutation, subscription=Subscription)
