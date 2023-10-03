@@ -50,8 +50,9 @@ const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
   return json;
 };
 
+const wsUrl = `ws://${window.location.host}/graphql`;
 const subscriptionsClient = createClient({
-  url: "ws://localhost:6060/graphql",
+  url: wsUrl,
 });
 
 // to understand why we return Observable<any>,

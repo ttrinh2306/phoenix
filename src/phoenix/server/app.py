@@ -33,6 +33,8 @@ templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 class AppConfig(NamedTuple):
     has_corpus: bool
+    host: str
+    port: int
 
 
 class Static(StaticFiles):
@@ -58,6 +60,8 @@ class Static(StaticFiles):
                 "index.html",
                 context={
                     "has_corpus": self._app_config.has_corpus,
+                    "host": self._app_config.host,
+                    "port": self._app_config.port,
                     "request": Request(scope),
                 },
             )
@@ -128,6 +132,8 @@ async def version(_: Request) -> PlainTextResponse:
 
 
 def create_app(
+    host: str,
+    port: int,
     export_path: Path,
     model: Model,
     corpus: Optional[Model] = None,
@@ -182,6 +188,8 @@ def create_app(
                     directory=SERVER_DIR / "static",
                     app_config=AppConfig(
                         has_corpus=corpus is not None,
+                        host=host,
+                        port=port,
                     ),
                 ),
                 name="static",

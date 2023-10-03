@@ -28,7 +28,7 @@ dependencies = [
   "umap-learn",
   "hdbscan>=0.8.33, <1.0.0",
   "starlette",
-  "uvicorn[standard]",
+  "uvicorn",
   "psutil",
   "strawberry-graphql==0.208.2",
   "pyarrow",

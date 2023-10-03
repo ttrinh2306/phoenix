@@ -120,15 +120,19 @@ if __name__ == "__main__":
             ),
         ):
             traces.put(span)
+
+    host = args.host or get_env_host()
+    port = args.port or get_env_port()
+    print(f"Starting server on {host}:{port}")
     app = create_app(
+        host=host,
+        port=port,
         export_path=export_path,
         model=model,
         traces=traces,
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
     )
-    host = args.host or get_env_host()
-    port = args.port or get_env_port()
     server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
     server.run()
