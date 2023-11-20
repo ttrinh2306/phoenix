@@ -1,13 +1,14 @@
 import random
 import threading
+import time
 from enum import Enum
 from queue import PriorityQueue
-from time import sleep
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 Result = float
 Index = int
 Priority = Union[int, float]  # contains float so that we can use float("inf")
+Time = float
 
 
 class EndOfQueue:
@@ -45,7 +46,7 @@ class Task:
             print(f"(Task {self._index}, Attempt {self._num_attempts}): {self._status.value}")
         try:
             output = self._f()
-            sleep(output)
+            time.sleep(output)
             if output < 0.3:  # simulate failure
                 raise Exception
         except Exception:
@@ -133,6 +134,7 @@ def run_tasks(
     max_num_concurrent_workers: int = 5,
     max_num_attempts: int = 5,
     timeout_per_loop: float = 0.1,
+    timeout_on_failure_in_seconds: float = 1.0,
 ) -> List[Result]:
     task_queue: PriorityQueue[Tuple[Priority, Index, Union[Task, EndOfQueue]]] = PriorityQueue()
     unique_index_generator = (
@@ -143,8 +145,16 @@ def run_tasks(
         task_queue.put((initial_priority, index, Task(f=task_, index=index)))
     task_queue.put((float("inf"), next(unique_index_generator), EndOfQueue()))
     task_manager = TaskManager(num_tasks=len(tasks))
+    last_failed_time: Optional[Time] = None
     while not task_manager.done:
-        sleep(timeout_per_loop)
+        time.sleep(timeout_per_loop)
+        on_timeout = (
+            last_failed_time and time.time() - last_failed_time < timeout_on_failure_in_seconds
+        )
+        if on_timeout:
+            print("On timeout")
+            continue
+        last_failed_time = None
         worker_is_available = task_manager.num_occupied_workers < max_num_concurrent_workers
         if worker_is_available and not task_queue.empty():
             num_attempts_remaining, _, task = task_queue.get()
@@ -154,6 +164,8 @@ def run_tasks(
                 raise RuntimeError("Task failed more than the maximum number of attempts")
             task_manager.add_task(task)
         failed_tasks = task_manager.check_tasks_and_record_results()
+        if failed_tasks:
+            last_failed_time = time.time()
         for task in failed_tasks:
             num_attempts_remaining = max_num_attempts - task.num_attempts
             task_queue.put((num_attempts_remaining, next(unique_index_generator), task))
