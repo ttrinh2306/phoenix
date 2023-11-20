@@ -131,14 +131,14 @@ class TaskManager:
 def run_tasks(
     tasks: List[Callable[[], Any]],
     max_num_concurrent_workers: int = 5,
-    max_num_retries: int = 5,
+    max_num_attempts: int = 5,
     timeout_per_loop: float = 0.1,
 ) -> List[Result]:
     task_queue: PriorityQueue[Tuple[Priority, Index, Union[Task, EndOfQueue]]] = PriorityQueue()
     unique_index_generator = (
         _generate_unique_index()
     )  # prevents tasks from being compared in the priority queue
-    initial_priority = max_num_retries - 1
+    initial_priority = max_num_attempts
     for index, task_ in enumerate(tasks):
         task_queue.put((initial_priority, index, Task(f=task_, index=index)))
     task_queue.put((float("inf"), next(unique_index_generator), EndOfQueue()))
@@ -147,15 +147,15 @@ def run_tasks(
         sleep(timeout_per_loop)
         worker_is_available = task_manager.num_occupied_workers < max_num_concurrent_workers
         if worker_is_available and not task_queue.empty():
-            num_retries_remaining, _, task = task_queue.get()
+            num_attempts_remaining, _, task = task_queue.get()
             if isinstance(task, EndOfQueue):
                 continue
-            if num_retries_remaining == 0:
-                raise RuntimeError("Task failed more than the maximum number of retries")
+            if num_attempts_remaining == 0:
+                raise RuntimeError("Task failed more than the maximum number of attempts")
             task_manager.add_task(task)
         failed_tasks = task_manager.check_tasks_and_record_results()
         for task in failed_tasks:
-            num_attempts_remaining = max_num_retries - task.num_attempts
+            num_attempts_remaining = max_num_attempts - task.num_attempts
             task_queue.put((num_attempts_remaining, next(unique_index_generator), task))
     return task_manager.results
 
@@ -169,5 +169,5 @@ def _generate_unique_index() -> Generator[Index, None, None]:
 
 if __name__ == "__main__":
     tasks = [random.random for index in range(100)]
-    results = run_tasks(tasks)
+    results = run_tasks(tasks, max_num_attempts=5)
     print(results)
